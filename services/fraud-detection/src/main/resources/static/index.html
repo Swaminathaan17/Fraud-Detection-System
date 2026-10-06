@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger — Transaction Monitoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12151B;
+    --panel: #181C24;
+    --panel-2: #1E232C;
+    --line: #2A2F3A;
+    --line-soft: #23283230;
+    --ink: #E8E6E1;
+    --ink-dim: #9AA0AC;
+    --ink-faint: #5C6270;
+    --safe: #4F9D69;
+    --flag: #C1443C;
+    --flag-bg: #2A1917;
+    --safe-bg: #16241C;
+    --gold: #C99A4A;
+    --serif: 'Source Serif 4', Georgia, serif;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--mono);}
+  body{
+    padding: 28px 32px 64px;
+    min-height:100vh;
+  }
+  a{color:inherit;}
+
+  /* ---------- Masthead ---------- */
+  .masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .masthead h1{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:28px;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .masthead .sub{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    margin-top:4px;
+  }
+  .status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12.5px;
+    color:var(--ink-dim);
+  }
+  .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--ink-faint);
+    box-shadow:0 0 0 3px transparent;
+    transition:background .3s;
+  }
+  .dot.live{background:var(--safe); box-shadow:0 0 0 3px #4f9d6922;}
+  .dot.demo{background:var(--gold); box-shadow:0 0 0 3px #c99a4a22;}
+  .status button{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    font-family:var(--mono);
+    font-size:11.5px;
+    padding:4px 9px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .status button:hover{border-color:var(--ink-faint); color:var(--ink);}
+
+  /* ---------- Summary strip ---------- */
+  .summary{
+    display:flex;
+    border:1px solid var(--line);
+    margin-bottom:32px;
+    overflow-x:auto;
+  }
+  .summary .cell{
+    flex:1 1 0;
+    min-width:150px;
+    padding:16px 20px;
+    border-right:1px solid var(--line);
+  }
+  .summary .cell:last-child{border-right:none;}
+  .summary .cell .label{
+    font-family:var(--serif);
+    font-size:13px;
+    color:var(--ink-dim);
+    margin-bottom:8px;
+  }
+  .summary .cell .value{
+    font-size:24px;
+    font-weight:600;
+    letter-spacing:-0.3px;
+  }
+  .summary .cell .value.flag{color:var(--flag);}
+  .summary .cell .value.safe{color:var(--safe);}
+
+  /* ---------- Layout ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns: 340px 1fr;
+    gap:24px;
+    align-items:start;
+  }
+  @media (max-width: 860px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    border:1px solid var(--line);
+    background:var(--panel);
+  }
+  .panel h2{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:16px;
+    margin:0;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel .body{padding:18px;}
+
+  /* ---------- Form ---------- */
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:11.5px;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:14px;
+    padding:9px 10px;
+    border-radius:2px;
+  }
+  .field input:focus{
+    outline:none;
+    border-color:var(--ink-faint);
+  }
+  .field .hint{font-size:10.5px; color:var(--ink-faint); margin-top:5px;}
+  .submit{
+    width:100%;
+    background:var(--ink);
+    color:var(--bg);
+    border:none;
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:14.5px;
+    padding:11px 0;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .submit:hover{background:#fff;}
+  .submit:disabled{background:var(--ink-faint); cursor:not-allowed;}
+  .error-msg{
+    font-size:12px;
+    color:var(--flag);
+    margin-top:10px;
+    display:none;
+  }
+
+  /* ---------- Assessment ---------- */
+  .assessment{border-top:1px solid var(--line);}
+  .assessment .body{min-height:88px;}
+  .assessment .empty{color:var(--ink-faint); font-size:13px;}
+  .verdict{
+    display:inline-block;
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:15px;
+    padding:3px 10px;
+    border-radius:2px;
+    margin-bottom:10px;
+  }
+  .verdict.flag{background:var(--flag-bg); color:#E5847B;}
+  .verdict.safe{background:var(--safe-bg); color:#8FCBA0;}
+  .reasons{list-style:none; margin:0; padding:0;}
+  .reasons li{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    padding:5px 0;
+    border-top:1px solid var(--line-soft);
+  }
+  .reasons li:first-child{border-top:none;}
+  .reasons li::before{content:"— "; color:var(--ink-faint);}
+
+  /* ---------- Ledger table ---------- */
+  .ledger-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .ledger-head h2{border:none; padding:0;}
+  .tabs{display:flex; gap:2px;}
+  .tabs button{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    font-family:var(--mono);
+    font-size:12px;
+    padding:6px 12px;
+    cursor:pointer;
+  }
+  .tabs button.active{
+    background:var(--panel-2);
+    color:var(--ink);
+    border-color:var(--ink-faint);
+  }
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    text-align:left;
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:12.5px;
+    color:var(--ink-dim);
+    padding:10px 18px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:11px 18px;
+    border-bottom:1px solid var(--line-soft);
+    white-space:nowrap;
+  }
+  tbody tr:hover{background:var(--panel-2);}
+  td.amount{text-align:right; font-weight:500;}
+  td.reason{
+    white-space:normal;
+    color:var(--ink-dim);
+    font-size:12px;
+    max-width:280px;
+  }
+  .pill{
+    display:inline-block;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:2px;
+  }
+  .pill.flag{background:var(--flag-bg); color:#E5847B;}
+  .pill.safe{background:var(--safe-bg); color:#8FCBA0;}
+  .empty-row td{
+    text-align:center;
+    color:var(--ink-faint);
+    padding:40px 18px;
+    font-family:var(--serif);
+    font-size:14px;
+  }
+  .ledger-scroll{max-height:560px; overflow-y:auto;}
+
+  footer{
+    margin-top:28px;
+    font-size:11px;
+    color:var(--ink-faint);
+    border-top:1px solid var(--line);
+    padding-top:14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div>
+    <h1>Ledger</h1>
+    <div class="sub">Transaction fraud monitoring console</div>
+  </div>
+  <div class="status">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">Connecting…</span>
+    <button id="retryBtn" type="button">Retry connection</button>
+  </div>
+</div>
+
+<div class="summary" id="summary">
+  <div class="cell"><div class="label">Total transactions</div><div class="value" id="statTotal">0</div></div>
+  <div class="cell"><div class="label">Flagged</div><div class="value flag" id="statFraud">0</div></div>
+  <div class="cell"><div class="label">Clear</div><div class="value safe" id="statSafe">0</div></div>
+  <div class="cell"><div class="label">Total volume</div><div class="value" id="statVolume">₹0</div></div>
+  <div class="cell"><div class="label">Fraud rate</div><div class="value" id="statRate">0%</div></div>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="panel">
+      <h2>Record a transaction</h2>
+      <div class="body">
+        <form id="txForm">
+          <div class="field">
+            <label for="userName">User name</label>
+            <input type="text" id="userName" placeholder="e.g. r.iyer" autocomplete="off" required>
+          </div>
+          <div class="field">
+            <label for="amount">Amount (₹)</label>
+            <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required>
+          </div>
+          <div class="field">
+            <label for="txId">Transaction ID <span style="color:var(--ink-faint)">(optional)</span></label>
+            <input type="number" id="txId" placeholder="Auto-assigned if left blank" min="1" step="1">
+            <div class="hint">Leave blank to have the ledger assign one.</div>
+          </div>
+          <button type="submit" class="submit" id="submitBtn">Record transaction</button>
+          <div class="error-msg" id="formError"></div>
+        </form>
+      </div>
+      <div class="assessment">
+        <h2>Assessment</h2>
+        <div class="body" id="assessmentBody">
+          <div class="empty">Nothing recorded yet. Submit a transaction to see its risk assessment here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ledger-head">
+      <h2>Ledger</h2>
+      <div class="tabs">
+        <button type="button" class="active" data-filter="all">All</button>
+        <button type="button" data-filter="fraud">Flagged</button>
+        <button type="button" data-filter="safe">Clear</button>
+      </div>
+    </div>
+    <div class="ledger-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Amount</th>
+            <th>Recorded</th>
+            <th>Status</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody">
+          <tr class="empty-row"><td colspan="6">No transactions recorded yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer>
+  API base: <span id="apiBaseLabel"></span> —
+  run the Spring Boot service to record real transactions; without it, this console runs on in-browser demo logic that mirrors the same rules.
+</footer>
+
+<script>
+(function(){
+  // When this page is opened as a local file, talk to the backend at
+  // localhost:8080. When the backend itself serves this page (bundled at
+  // src/main/resources/static/index.html), use a same-origin relative path
+  // instead, so it works regardless of host/port.
+  const API_BASE = (location.protocol === 'file:')
+    ? 'http://localhost:8080/api'
+    : (location.origin + '/api');
+  let liveMode = false;
+  let filter = 'all';
+
+  // ---- in-browser fallback state (mirrors backend rules) ----
+  let demoTransactions = [];
+  let demoIdCounter = 1;
+  const HIGH_THRESHOLD = 100000;
+  const MEDIUM_THRESHOLD = 50000;
+  const RAPID_COUNT = 5;
+  const RAPID_WINDOW_MS = 60 * 1000;
+
+  const el = (id) => document.getElementById(id);
+  const statusDot = el('statusDot');
+  const statusText = el('statusText');
+  const retryBtn = el('retryBtn');
+  const form = el('txForm');
+  const submitBtn = el('submitBtn');
+  const formError = el('formError');
+  const ledgerBody = el('ledgerBody');
+  const assessmentBody = el('assessmentBody');
+
+  function fmtMoney(n){
+    return '₹' + Number(n).toLocaleString('en-IN', {maximumFractionDigits: 2});
+  }
+  function fmtTime(iso){
+    const d = new Date(iso);
+    if (isNaN(d)) return '—';
+    return d.toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+
+  function setStatus(mode){
+    liveMode = mode === 'live';
+    statusDot.className = 'dot ' + mode;
+    statusText.textContent = mode === 'live'
+      ? 'Connected to API'
+      : mode === 'demo'
+        ? 'Demo mode — API unreachable'
+        : 'Connecting…';
+  }
+
+  async function checkConnection(){
+    setStatus('connecting');
+    try {
+      const res = await fetch(API_BASE + '/transactions', {method:'GET'});
+      if (!res.ok) throw new Error('bad status');
+      setStatus('live');
+      await refreshAll();
+    } catch (e) {
+      setStatus('demo');
+      renderAll(demoTransactions);
+    }
+  }
+
+  retryBtn.addEventListener('click', checkConnection);
+
+  // ---- rendering ----
+  function computeStats(list){
+    const total = list.length;
+    const fraud = list.filter(t => t.fraud).length;
+    const totalAmount = list.reduce((s,t) => s + Number(t.amount||0), 0);
+    return {
+      total, fraud, safe: total - fraud, totalAmount,
+      rate: total === 0 ? 0 : (fraud/total*100)
+    };
+  }
+
+  function renderStats(list){
+    const s = computeStats(list);
+    el('statTotal').textContent = s.total;
+    el('statFraud').textContent = s.fraud;
+    el('statSafe').textContent = s.safe;
+    el('statVolume').textContent = fmtMoney(s.totalAmount);
+    el('statRate').textContent = s.rate.toFixed(1) + '%';
+  }
+
+  function renderLedger(list){
+    let rows = list.slice().sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (filter === 'fraud') rows = rows.filter(t => t.fraud);
+    if (filter === 'safe') rows = rows.filter(t => !t.fraud);
+
+    if (rows.length === 0){
+      ledgerBody.innerHTML = '<tr class="empty-row"><td colspan="6">No transactions match this view.</td></tr>';
+      return;
+    }
+    ledgerBody.innerHTML = rows.map(t => `
+      <tr>
+        <td>${t.transactionId}</td>
+        <td>${escapeHtml(t.userName)}</td>
+        <td class="amount">${fmtMoney(t.amount)}</td>
+        <td>${fmtTime(t.timestamp)}</td>
+        <td><span class="pill ${t.fraud ? 'flag':'safe'}">${t.fraud ? 'Flagged':'Clear'}</span></td>
+        <td class="reason">${t.fraud ? escapeHtml(t.fraudReason || '') : '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderAssessment(t){
+    if (!t){
+      assessmentBody.innerHTML = '<div class="empty">Nothing recorded yet. Submit a transaction to see its risk assessment here.</div>';
+      return;
+    }
+    const reasons = (t.fraud && t.fraudReason) ? t.fraudReason.split(', ').filter(Boolean) : [];
+    assessmentBody.innerHTML = `
+      <span class="verdict ${t.fraud ? 'flag':'safe'}">${t.fraud ? 'Flagged for review' : 'No flags raised'}</span>
+      <div style="font-size:12.5px; color:var(--ink-dim); margin-bottom:2px;">
+        Transaction #${t.transactionId} — ${escapeHtml(t.userName)}, ${fmtMoney(t.amount)}
+      </div>
+      ${reasons.length ? `<ul class="reasons">${reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
+    `;
+  }
+
+  function renderAll(list){
+    renderStats(list);
+    renderLedger(list);
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filter = btn.dataset.filter;
+      if (liveMode) refreshAll(); else renderAll(demoTransactions);
+    });
+  });
+
+  async function refreshAll(){
+    try {
+      const res = await fetch(API_BASE + '/transactions');
+      const list = await res.json();
+      renderAll(list);
+    } catch (e) {
+      setStatus('demo');
+      renderAll(demoTransactions);
+    }
+  }
+
+  // ---- demo-mode fraud logic (mirrors the backend) ----
+  function assessDemo(t){
+    const reasons = [];
+    if (t.amount > HIGH_THRESHOLD) reasons.push('Amount exceeds Rs.1,00,000');
+    else if (t.amount > MEDIUM_THRESHOLD) reasons.push('Amount exceeds Rs.50,000');
+
+    const duplicate = demoTransactions.some(tx => tx.transactionId === t.transactionId);
+    if (duplicate) reasons.push('Duplicate Transaction ID');
+
+    const windowStart = new Date(t.timestamp).getTime() - RAPID_WINDOW_MS;
+    const recentCount = demoTransactions.filter(tx =>
+      tx.userName.toLowerCase() === t.userName.toLowerCase() &&
+      new Date(tx.timestamp).getTime() >= windowStart
+    ).length;
+    if (recentCount + 1 >= RAPID_COUNT){
+      reasons.push(`Rapid Activity (${recentCount+1} transactions in 60s)`);
+    }
+
+    t.fraud = reasons.length > 0;
+    t.fraudReason = reasons.join(', ');
+    return t;
+  }
+
+  form.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    formError.style.display = 'none';
+
+    const userName = el('userName').value.trim();
+    const amount = parseFloat(el('amount').value);
+    const txIdRaw = el('txId').value.trim();
+
+    if (!userName){ showError('User name is required.'); return; }
+    if (!amount || amount <= 0){ showError('Amount must be greater than 0.'); return; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Recording…';
+
+    const payload = {
+      userName,
+      amount,
+      transactionId: txIdRaw ? parseInt(txIdRaw, 10) : 0
+    };
+
+    try {
+      if (liveMode){
+        const res = await fetch(API_BASE + '/transactions', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok){
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Request failed');
+        }
+        const created = await res.json();
+        renderAssessment(created);
+        await refreshAll();
+      } else {
+        const t = {
+          transactionId: payload.transactionId || demoIdCounter,
+          userName: payload.userName,
+          amount: payload.amount,
+          timestamp: new Date().toISOString()
+        };
+        assessDemo(t);
+        demoTransactions.push(t);
+        demoIdCounter = Math.max(demoIdCounter, t.transactionId) + 1;
+        renderAssessment(t);
+        renderAll(demoTransactions);
+      }
+      form.reset();
+    } catch (e) {
+      showError(e.message || 'Could not record transaction.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Record transaction';
+    }
+  });
+
+  function showError(msg){
+    formError.textContent = msg;
+    formError.style.display = 'block';
+  }
+
+  el('apiBaseLabel').textContent = API_BASE;
+  checkConnection();
+})();
+</script>
+</body>
+</html>

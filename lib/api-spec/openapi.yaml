@@ -1,0 +1,223 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Fraud detection service API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: transactions
+    description: Transaction recording and investigation
+  - name: fraud
+    description: Fraud monitoring and statistics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /transactions:
+    get:
+      operationId: getTransactions
+      tags: [transactions]
+      summary: List all transactions
+      responses:
+        "200":
+          description: All recorded transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Record a transaction and return its fraud assessment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Transaction recorded and assessed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: The transaction input is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get a transaction by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: No transaction exists with this ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /transactions/user/{userName}:
+    get:
+      operationId: getTransactionsByUser
+      tags: [transactions]
+      summary: List transactions for a user
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transactions recorded for this user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+  /fraud:
+    get:
+      operationId: getFraudTransactions
+      tags: [fraud]
+      summary: List transactions flagged by the existing detection rules
+      responses:
+        "200":
+          description: Flagged transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+  /statistics:
+    get:
+      operationId: getStatistics
+      tags: [fraud]
+      summary: Read transaction and fraud totals
+      responses:
+        "200":
+          description: Statistics calculated from stored transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Statistics"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Transaction:
+      type: object
+      properties:
+        transactionId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        amount:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+        fraud:
+          type: boolean
+        fraudReason:
+          type: string
+      required:
+        - transactionId
+        - userName
+        - amount
+        - timestamp
+        - fraud
+        - fraudReason
+    TransactionInput:
+      type: object
+      properties:
+        transactionId:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+        userName:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+      required:
+        - userName
+        - amount
+    Statistics:
+      type: object
+      properties:
+        total:
+          type: integer
+        fraud:
+          type: integer
+        safe:
+          type: integer
+        totalAmount:
+          type: number
+          format: double
+        fraudAmount:
+          type: number
+          format: double
+        fraudRatePercent:
+          type: number
+          format: double
+      required:
+        - total
+        - fraud
+        - safe
+        - totalAmount
+        - fraudAmount
+        - fraudRatePercent
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
