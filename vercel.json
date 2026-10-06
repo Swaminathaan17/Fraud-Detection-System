@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://fraud-detection-api.onrender.com/api/:path*"
+      "destination": "https://fraud-detection-api-h59q.onrender.com/api/:path*"
     }
   ]
 }
